@@ -10,6 +10,7 @@ Stages (run in order):
 Usage:
     python scripts/train.py --stage features
     python scripts/train.py --stage embeddings --epochs 100
+    python scripts/train.py --stage clustering
     python scripts/train.py --stage features2   # after Shengyang produces cluster_labels.npz
 """
 
@@ -71,6 +72,44 @@ def stage_embeddings(args):
     print("Done.")
 
 
+def stage_clustering(args):
+    """Run k-means over embeddings and save cluster labels for all rows."""
+    print("=== Stage: clustering ===")
+    import numpy as np
+    from src.models.clustering import KMeansClustering
+
+    embeddings_path = "data/embeddings.npz"
+    if not os.path.exists(embeddings_path):
+        print("ERROR: data/embeddings.npz not found. Run --stage embeddings first.")
+        sys.exit(1)
+
+    emb_data = np.load(embeddings_path, allow_pickle=True)
+    embeddings = emb_data["embeddings"]
+
+    print(f"Loaded embeddings: {embeddings.shape}")
+    model = KMeansClustering(
+        n_clusters=args.clusters,
+        max_iter=args.max_iter,
+        random_state=args.random_state,
+        tol=args.tol,
+    )
+    labels = model.fit_predict(embeddings)
+    counts = np.bincount(labels, minlength=args.clusters)
+
+    cluster_names = np.array([f"cluster_{i}" for i in range(args.clusters)])
+    np.savez(
+        "data/cluster_labels.npz",
+        labels=labels,
+        centroids=model.centroids.astype(np.float32),
+        k=args.clusters,
+        cluster_names=cluster_names,
+    )
+
+    print(f"Saved cluster labels -> data/cluster_labels.npz")
+    print(f"Centroids: {model.centroids.shape} | iterations: {model.n_iter_} | inertia: {model.inertia_:.4f}")
+    print(f"Cluster counts: {counts.tolist()}")
+
+
 def stage_features2(args):
     """Re-run feature building with cluster one-hots appended (after clustering)."""
     print("=== Stage: features2 (with cluster labels) ===")
@@ -86,19 +125,12 @@ def stage_features2(args):
     labels = cluster_data["labels"]
     k = int(cluster_data["k"])
 
-    emb_data = np.load("data/embeddings.npz", allow_pickle=True)
-    player_names = emb_data["player_names"]
-    map_names    = emb_data["map_names"]
-
     df = load_player_stats(args.data)
-    # Map cluster labels back onto df rows by (player_name, map_name) first occurrence
-    label_lookup = {}
-    for pname, mname, label in zip(player_names, map_names, labels):
-        label_lookup[(pname, mname)] = int(label)
+    if len(labels) != len(df):
+        print(f"ERROR: cluster label count ({len(labels)}) does not match data rows ({len(df)}).")
+        sys.exit(1)
 
-    df["cluster"] = df.apply(
-        lambda r: label_lookup.get((r["player_name"], r["map_name"]), 0), axis=1
-    )
+    df["cluster"] = labels.astype(int)
 
     # One-hot encode cluster
     for c in range(k):
@@ -114,17 +146,23 @@ def stage_features2(args):
 def main():
     parser = argparse.ArgumentParser(description="Valorant kill predictor training pipeline")
     parser.add_argument("--stage",  required=True,
-                        choices=["features", "embeddings", "features2"],
+                        choices=["features", "embeddings", "clustering", "features2"],
                         help="Pipeline stage to run")
     parser.add_argument("--data",      default="data/player_map_stats.csv")
     parser.add_argument("--embed-dim", type=int, default=8)
     parser.add_argument("--epochs",    type=int, default=50)
+    parser.add_argument("--clusters",  type=int, default=4)
+    parser.add_argument("--max-iter",  type=int, default=100)
+    parser.add_argument("--random-state", type=int, default=42)
+    parser.add_argument("--tol",       type=float, default=1e-4)
     args = parser.parse_args()
 
     if args.stage == "features":
         stage_features(args)
     elif args.stage == "embeddings":
         stage_embeddings(args)
+    elif args.stage == "clustering":
+        stage_clustering(args)
     elif args.stage == "features2":
         stage_features2(args)
 

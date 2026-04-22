@@ -21,7 +21,11 @@ def extract_player_features(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, l
     for role in ["duelist", "initiator", "controller", "sentinel"]:
         df[f"role_{role}"] = (df["role"] == role).astype(float)
 
-    cols = CONTINUOUS_COLS + ROLE_COLS
+    cluster_cols = sorted(
+        [col for col in df.columns if col.startswith("cluster_")],
+        key=lambda name: int(name.split("_", 1)[1]),
+    )
+    cols = CONTINUOUS_COLS + ROLE_COLS + cluster_cols
     X = df[cols].values.astype(np.float32)
     y = df["kills"].values.astype(np.int32)
     return X, y, cols
