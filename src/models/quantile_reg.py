@@ -29,6 +29,7 @@ class QuantileRegression:
         # Initialize parameters
         self.weights = np.zeros((F, Q))
         self.biases = np.zeros(Q)
+        self.loss_history_ = []
         
         # Reshape y for broadcasting against (N, Q) predictions
         y_reshaped = y[:, np.newaxis]
@@ -39,6 +40,11 @@ class QuantileRegression:
             
             # Error and gradient
             error = y_reshaped - y_pred
+            
+            # Record loss per quantile
+            epoch_loss = np.mean(np.maximum(self.quantiles * error, (self.quantiles - 1) * error), axis=0)
+            self.loss_history_.append(epoch_loss)
+            
             grad_y_pred = np.where(error >= 0, -self.quantiles, 1 - self.quantiles)
             
             # Parameter gradients
