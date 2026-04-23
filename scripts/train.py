@@ -19,7 +19,7 @@ def main():
     parser.add_argument("--features", default="data/features.npz", help="Path to features.npz")
     parser.add_argument("--output", default="data/mlp_model.npz", help="Output model path")
     parser.add_argument("--lr", type=float, default=0.015)
-    parser.add_argument("--epochs", type=int, default=600)
+    parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--hidden1", type=int, default=64)
     parser.add_argument("--hidden2", type=int, default=32)
