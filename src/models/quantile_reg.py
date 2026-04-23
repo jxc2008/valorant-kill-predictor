@@ -34,7 +34,7 @@ class QuantileRegression:
         # Reshape y for broadcasting against (N, Q) predictions
         y_reshaped = y[:, np.newaxis]
         
-        for _ in range(epochs):
+        for epoch in range(epochs):
             # Forward pass
             y_pred = X.dot(self.weights) + self.biases
             
@@ -45,6 +45,10 @@ class QuantileRegression:
             epoch_loss = np.mean(np.maximum(self.quantiles * error, (self.quantiles - 1) * error), axis=0)
             self.loss_history_.append(epoch_loss)
             
+            if epoch % 100 == 0:
+                avg_loss = np.mean(epoch_loss)
+                print(f"Epoch {epoch:4d} | Avg Loss: {avg_loss:.4f} | Quantile Losses: {np.round(epoch_loss, 4)}")
+                
             grad_y_pred = np.where(error >= 0, -self.quantiles, 1 - self.quantiles)
             
             # Parameter gradients
@@ -68,7 +72,7 @@ if __name__ == "__main__":
     # --- CONFIGURATION ---
     DATASET_FILENAME = "features_with_cluster.npz"  # Change to "features_with_cluster.npz" for clusters data appended
     
-    OUTPUT_FILENAME = "quantile_model.npz" if DATASET_FILENAME == "features.npz" else "quantile_model_with_cluster.npz"
+    OUTPUT_FILENAME = "quantile_model.npz"
     # ---------------------
     
     # Resolve absolute paths based on this file's location
@@ -82,7 +86,7 @@ if __name__ == "__main__":
     
     print(f"Training QuantileRegression on {X_train.shape[0]} samples with {X_train.shape[1]} features...")
     model = QuantileRegression()
-    model.fit(X_train, y_train, lr=0.01, epochs=1000)
+    model.fit(X_train, y_train, lr=0.04, epochs=1500)
     
     print("\nTraining complete!")
     print("Final loss per quantile (10th, 25th, 50th, 75th, 90th):")
