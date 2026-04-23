@@ -60,3 +60,34 @@ class QuantileRegression:
         if self.weights is None or self.biases is None:
             raise ValueError("Model has not been fitted yet.")
         return X.dot(self.weights) + self.biases
+
+
+if __name__ == "__main__":
+    import os
+    
+    # --- CONFIGURATION ---
+    DATASET_FILENAME = "features_with_cluster.npz"  # Change to "features_with_cluster.npz" for clusters data appended
+    
+    OUTPUT_FILENAME = "quantile_model.npz" if DATASET_FILENAME == "features.npz" else "quantile_model_with_cluster.npz"
+    # ---------------------
+    
+    # Resolve absolute paths based on this file's location
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    data_path = os.path.join(base_dir, "data", DATASET_FILENAME)
+    out_path = os.path.join(base_dir, "data", OUTPUT_FILENAME)
+    
+    print(f"Loading data from: {DATASET_FILENAME}...")
+    data = np.load(data_path)
+    X_train, y_train = data["X_train"], data["y_train"]
+    
+    print(f"Training QuantileRegression on {X_train.shape[0]} samples with {X_train.shape[1]} features...")
+    model = QuantileRegression()
+    model.fit(X_train, y_train, lr=0.01, epochs=1000)
+    
+    print("\nTraining complete!")
+    print("Final loss per quantile (10th, 25th, 50th, 75th, 90th):")
+    print(model.loss_history_[-1])
+    
+    print(f"\nSaving model to: {OUTPUT_FILENAME}...")
+    np.savez(out_path, weights=model.weights, biases=model.biases, quantiles=model.quantiles, loss_history=model.loss_history_)
+    print("Done!")
