@@ -31,7 +31,24 @@ def pinball_loss(y_true: np.ndarray, y_pred: np.ndarray, quantiles: np.ndarray) 
     loss = np.maximum(q * error, (q - 1.0) * error)
     return float(np.mean(loss))
 
+def pinball_loss_per_quantile(
+    y_true: np.ndarray, y_pred: np.ndarray, quantiles: np.ndarray
+) -> np.ndarray:
+    """Pinball loss for each quantile separately.
 
+    Args:
+        y_true: Shape (N,).
+        y_pred: Shape (N, Q).
+        quantiles: Shape (Q,).
+
+    Returns:
+        Shape (Q,) with average loss for each quantile.
+    """
+    y_true_col = y_true.reshape(-1, 1)
+    error = y_true_col - y_pred
+    q = quantiles.reshape(1, -1)
+    loss = np.maximum(q * error, (q - 1.0) * error)
+    return np.mean(loss, axis=0)
 @dataclass
 class TrainHistory:
     """Simple training history container."""
@@ -213,6 +230,8 @@ def train_from_features(
     epochs: int = 400,
     batch_size: int = 128,
     hidden_dims: tuple[int, int] = (64, 32),
+    include_extra_cluster_keys: bool = True,
+    require_cluster_features: bool = False,
 ) -> MLPQuantileRegressor:
     """Convenience trainer that consumes the shared features.npz contract."""
     data = np.load(features_path)
@@ -221,8 +240,51 @@ def train_from_features(
         y_train = data["y_train"]
     else:
         raise KeyError("features.npz must contain X_train and y_train arrays")
+    cluster_feature_count = 0
+    if "feature_names" in data:
+        feature_names = data["feature_names"]
+        cluster_feature_count += int(np.sum(np.char.startswith(feature_names.astype(str), "cluster_")))
 
+    if include_extra_cluster_keys:
+        # Backward-compatible support for archives that store clustering features
+        # in separate arrays instead of appending them into X_train directly.
+        cluster_key_candidates = ("X_cluster_train", "cluster_features_train")
+        cluster_key = next((k for k in cluster_key_candidates if k in data), None)
+        if cluster_key is not None:
+            X_cluster_train = np.asarray(data[cluster_key], dtype=float)
+            if X_cluster_train.ndim != 2:
+                raise ValueError(f"{cluster_key} must be a 2D array with shape (N, C)")
+            if X_cluster_train.shape[0] != X_train.shape[0]:
+                raise ValueError(
+                    f"{cluster_key} row count ({X_cluster_train.shape[0]}) must match "
+                    f"X_train row count ({X_train.shape[0]})"
+                )
+            X_train = np.concatenate([X_train, X_cluster_train], axis=1)
+            cluster_feature_count += X_cluster_train.shape[1]
+            print(
+                f"[MLP] Appended {X_cluster_train.shape[1]} clustering features "
+                f"from '{cluster_key}' (input_dim={X_train.shape[1]})."
+            )
+
+    if require_cluster_features and cluster_feature_count == 0:
+        raise ValueError(
+            "No clustering features found. Expected either cluster_* columns in feature_names "
+            "or separate arrays X_cluster_train/cluster_features_train."
+        )
+
+    print(f"[MLP] Training with input_dim={X_train.shape[1]} (cluster_features={cluster_feature_count}).")
     model = MLPQuantileRegressor(input_dim=X_train.shape[1], hidden_dims=hidden_dims)
     model.fit(X_train, y_train, lr=lr, epochs=epochs, batch_size=batch_size)
+    # Report per-quantile pinball losses similar to quantile_reg.py output.
+    train_pred = model.predict(X_train)
+    train_q_loss = pinball_loss_per_quantile(y_train, train_pred, model.quantiles)
+    print("[MLP] Final train pinball loss per quantile (10th, 25th, 50th, 75th, 90th):")
+    print(train_q_loss)
+
+    if "X_test" in data and "y_test" in data:
+        test_pred = model.predict(data["X_test"])
+        test_q_loss = pinball_loss_per_quantile(data["y_test"], test_pred, model.quantiles)
+        print("[MLP] Final test pinball loss per quantile (10th, 25th, 50th, 75th, 90th):")
+        print(test_q_loss)
     model.save(out_path)
     return model
