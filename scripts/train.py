@@ -5,12 +5,14 @@ Stages (run in order):
     features    — build and save features.npz from the raw CSV
     embeddings  — train embedding model, save embeddings.npz
     clustering  — (run by Shengyang) reads embeddings.npz, writes cluster_labels.npz
+    gmm         — optional GMM alternative, writes gmm_cluster_labels.npz
     features2   — re-run features with cluster one-hots appended (after clustering)
 
 Usage:
     python scripts/train.py --stage features
     python scripts/train.py --stage embeddings --epochs 100
     python scripts/train.py --stage clustering
+    python scripts/train.py --stage gmm
     python scripts/train.py --stage features2   # after Shengyang produces cluster_labels.npz
 """
 
@@ -110,6 +112,56 @@ def stage_clustering(args):
     print(f"Cluster counts: {counts.tolist()}")
 
 
+def stage_gmm(args):
+    """Run GMM over embeddings and save hard + soft cluster assignments."""
+    print("=== Stage: gmm ===")
+    import numpy as np
+    from src.models.gmm import GaussianMixtureClustering
+
+    embeddings_path = "data/embeddings.npz"
+    if not os.path.exists(embeddings_path):
+        print("ERROR: data/embeddings.npz not found. Run --stage embeddings first.")
+        sys.exit(1)
+
+    emb_data = np.load(embeddings_path, allow_pickle=True)
+    embeddings = emb_data["embeddings"]
+
+    print(f"Loaded embeddings: {embeddings.shape}")
+    model = GaussianMixtureClustering(
+        n_components=args.clusters,
+        max_iter=args.max_iter,
+        random_state=args.random_state,
+        tol=args.tol,
+        reg_covar=args.reg_covar,
+    )
+    labels = model.fit_predict(embeddings)
+    counts = np.bincount(labels, minlength=args.clusters)
+
+    cluster_names = np.array([f"gmm_cluster_{i}" for i in range(args.clusters)])
+    np.savez(
+        "data/gmm_cluster_labels.npz",
+        labels=labels,
+        responsibilities=model.responsibilities_.astype(np.float32),
+        weights=model.weights_.astype(np.float32),
+        means=model.means_.astype(np.float32),
+        variances=model.variances_.astype(np.float32),
+        covariances=model.variances_.astype(np.float32),
+        covariance_type="diag",
+        k=args.clusters,
+        cluster_names=cluster_names,
+        lower_bound=model.lower_bound_,
+        converged=model.converged_,
+        n_iter=model.n_iter_,
+    )
+
+    print("Saved GMM cluster labels -> data/gmm_cluster_labels.npz")
+    print(
+        f"Means: {model.means_.shape} | iterations: {model.n_iter_} | "
+        f"converged: {model.converged_} | lower_bound: {model.lower_bound_:.4f}"
+    )
+    print(f"Cluster counts: {counts.tolist()}")
+
+
 def stage_features2(args):
     """Re-run feature building with cluster one-hots appended (after clustering)."""
     print("=== Stage: features2 (with cluster labels) ===")
@@ -146,7 +198,7 @@ def stage_features2(args):
 def main():
     parser = argparse.ArgumentParser(description="Valorant kill predictor training pipeline")
     parser.add_argument("--stage",  required=True,
-                        choices=["features", "embeddings", "clustering", "features2"],
+                        choices=["features", "embeddings", "clustering", "gmm", "features2"],
                         help="Pipeline stage to run")
     parser.add_argument("--data",      default="data/player_map_stats.csv")
     parser.add_argument("--embed-dim", type=int, default=8)
@@ -155,6 +207,7 @@ def main():
     parser.add_argument("--max-iter",  type=int, default=100)
     parser.add_argument("--random-state", type=int, default=42)
     parser.add_argument("--tol",       type=float, default=1e-4)
+    parser.add_argument("--reg-covar", type=float, default=1e-6)
     args = parser.parse_args()
 
     if args.stage == "features":
@@ -163,6 +216,8 @@ def main():
         stage_embeddings(args)
     elif args.stage == "clustering":
         stage_clustering(args)
+    elif args.stage == "gmm":
+        stage_gmm(args)
     elif args.stage == "features2":
         stage_features2(args)
 
