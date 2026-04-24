@@ -7,18 +7,27 @@ const MAPS = [
   "Breeze", "Fracture", "Pearl", "Lotus", "Sunset"
 ];
 
+type FeatureCoefficient = {
+  feature: string;
+  weight: number;
+};
+
 type PredictResult = {
   killRange: [number, number];
   overProbability: number;
   archetype: string;
   similarPlayers: string[];
   model: string;
+  featureCoefficients?: FeatureCoefficient[];
 };
+
+type ModelType = "mlp" | "quantile_regression";
 
 export default function Home() {
   const [player, setPlayer] = useState("");
   const [map, setMap] = useState(MAPS[0]);
   const [killLine, setKillLine] = useState("15.5");
+  const [model, setModel] = useState<ModelType>("mlp");
   const [result, setResult] = useState<PredictResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +41,12 @@ export default function Home() {
       const res = await fetch("/api/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ player: player.trim(), map, killLine: parseFloat(killLine) }),
+        body: JSON.stringify({
+          player: player.trim(),
+          map,
+          killLine: parseFloat(killLine),
+          model
+        }),
       });
       const data = await res.json();
       setResult(data);
@@ -44,6 +58,9 @@ export default function Home() {
   }
 
   const overPct = result ? Math.round(result.overProbability * 100) : 0;
+  const maxWeight = result?.featureCoefficients
+    ? Math.max(...result.featureCoefficients.map(f => f.weight))
+    : 1;
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white font-mono relative overflow-hidden">
@@ -71,14 +88,46 @@ export default function Home() {
 
         {/* Hero */}
         <div className="mb-14">
-          <p className="text-[#FF4655] text-xs tracking-[0.4em] mb-3 uppercase">VCT 2025–2026 · 1,707 Matches · 41K+ Map Stats</p>
+          <p className="text-[#FF4655] text-xs tracking-[0.4em] mb-3 uppercase">
+            VCT 2025-2026 · 1,707 Matches · 41K+ Map Stats
+          </p>
           <h1 className="text-5xl font-black leading-none tracking-tight mb-4">
             PREDICT<br />
             <span className="text-[#FF4655]">KILL LINES</span>
           </h1>
           <p className="text-[#555] text-sm leading-relaxed max-w-md">
             Enter a pro player and map. Our model outputs a predicted kill range
-            and over/under probability using quantile regression trained on VCT match data.
+            and over/under probability using match data from VCT 2025-2026.
+          </p>
+        </div>
+
+        {/* Model toggle */}
+        <div className="mb-6">
+          <p className="text-[#FF4655] text-xs tracking-[0.3em] uppercase mb-3">Model</p>
+          <div className="flex gap-0 border border-[#2a2a2a] w-fit">
+            <button
+              onClick={() => { setModel("mlp"); setResult(null); }}
+              className={`px-6 py-2.5 text-xs tracking-[0.2em] uppercase font-bold transition-colors
+                ${model === "mlp"
+                  ? "bg-[#FF4655] text-white"
+                  : "bg-[#0f0f0f] text-[#555] hover:text-white"}`}
+            >
+              MLP Neural Net
+            </button>
+            <button
+              onClick={() => { setModel("quantile_regression"); setResult(null); }}
+              className={`px-6 py-2.5 text-xs tracking-[0.2em] uppercase font-bold transition-colors border-l border-[#2a2a2a]
+                ${model === "quantile_regression"
+                  ? "bg-[#FF4655] text-white"
+                  : "bg-[#0f0f0f] text-[#555] hover:text-white"}`}
+            >
+              Quantile Regression
+            </button>
+          </div>
+          <p className="text-[#333] text-xs mt-2">
+            {model === "mlp"
+              ? "Default · 2-layer neural network trained with pinball loss"
+              : "Interpretable · linear model with per-feature coefficients by quantile"}
           </p>
         </div>
 
@@ -202,12 +251,47 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Feature coefficients — QR only */}
+            {model === "quantile_regression" && result.featureCoefficients && (
+              <div className="mb-8 border-t border-[#1f1f1f] pt-8">
+                <p className="text-[#FF4655] text-xs tracking-[0.3em] uppercase mb-1">
+                  Top Feature Coefficients
+                </p>
+                <p className="text-[#2a2a2a] text-xs mb-4">
+                  Median quantile (q=0.50) · higher = stronger predictor of kill count
+                </p>
+                <div className="space-y-3">
+                  {result.featureCoefficients.map((f, i) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-[#888]">{f.feature}</span>
+                        <span className="text-[#555]">{f.weight.toFixed(2)}</span>
+                      </div>
+                      <div className="h-1 bg-[#1a1a1a] w-full">
+                        <div
+                          className="h-full bg-[#FF4655] transition-all duration-500"
+                          style={{
+                            width: `${(f.weight / maxWeight) * 100}%`,
+                            opacity: 1 - i * 0.1
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Similar players */}
             <div>
-              <p className="text-[#555] text-xs tracking-[0.3em] uppercase mb-3">Similar Players via KNN</p>
-              <div className="flex gap-3">
+              <p className="text-[#555] text-xs tracking-[0.3em] uppercase mb-3">
+                Similar Players via KNN
+              </p>
+              <div className="flex gap-3 flex-wrap">
                 {result.similarPlayers.map((p, i) => (
-                  <div key={i} className="border border-[#1f1f1f] px-4 py-2 text-sm text-[#888] hover:border-[#FF4655]/40 hover:text-white transition-colors cursor-pointer">
+                  <div key={i}
+                    className="border border-[#1f1f1f] px-4 py-2 text-sm text-[#888]
+                               hover:border-[#FF4655]/40 hover:text-white transition-colors cursor-pointer">
                     {p}
                   </div>
                 ))}
