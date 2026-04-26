@@ -3,15 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   const { player, map, killLine, model } = await req.json();
 
-  // ── Swap this block for a real Flask call once Joseph's backend is ready ──
-  // const res = await fetch("http://localhost:5000/predict", {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify({ player, map, killLine, model })
-  // });
-  // const data = await res.json();
-  // return NextResponse.json(data);
-  // ─────────────────────────────────────────────────────────────────────────
+  const flaskRes = await fetch("http://127.0.0.1:5000/api/predict", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ player, map, killLine, model })
+});
+const data = await flaskRes.json();
+return NextResponse.json(data);
 
   const base = {
     killRange: [12, 18] as [number, number],
