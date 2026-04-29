@@ -229,25 +229,73 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Over/under bar */}
+            {/* Kill distribution bar */}
             <div className="mb-8">
-              <div className="flex justify-between text-xs tracking-widest uppercase mb-2">
-                <span className="text-[#555]">Under {killLine}</span>
-                <span className="text-[#555]">Over {killLine}</span>
+              <p className="text-[#555] text-xs tracking-[0.3em] uppercase mb-4">
+                Predicted Kill Distribution
+              </p>
+              <div className="relative h-12 bg-[#111] w-full">
+                
+                {/* 10-90 range — lightest */}
+                {(() => {
+                  const min = result.killRange[0] - 2;
+                  const max = result.killRange[1] + 2;
+                  const range = max - min;
+                  const leftPct = 0;
+                  const widthPct = 100;
+                  return (
+                    <div className="absolute h-full bg-[#FF4655]/10"
+                      style={{ left: `${leftPct}%`, width: `${widthPct}%` }} />
+                  );
+                })()}
+
+                {/* 25-75 range — medium */}
+                <div className="absolute h-full bg-[#FF4655]/25"
+                  style={{
+                    left: `25%`,
+                    width: `50%`
+                  }} />
+
+                {/* Median marker */}
+                <div className="absolute h-full w-0.5 bg-[#FF4655]"
+                  style={{ left: `50%` }} />
+
+                {/* Kill line marker */}
+                {(() => {
+                  const median = (result.killRange[0] + result.killRange[1]) / 2;
+                  const spread = result.killRange[1] - result.killRange[0] + 4;
+                  const min = median - spread;
+                  const max = median + spread;
+                  const pct = ((parseFloat(killLine) - min) / (max - min)) * 100;
+                  const clampedPct = Math.min(Math.max(pct, 2), 98);
+                  return (
+                    <div className="absolute top-0 bottom-0 flex flex-col items-center"
+                      style={{ left: `${clampedPct}%` }}>
+                      <div className="text-[10px] text-white/60 -translate-x-1/2 mt-1">
+                        {killLine}
+                      </div>
+                      <div className="w-2 h-2 rounded-full bg-white mt-1" />
+                      <div className="w-px flex-1 bg-white/40" />
+                    </div>
+                  );
+                })()}
               </div>
-              <div className="h-2 bg-[#1a1a1a] w-full relative">
-                <div
-                  className="h-full bg-[#FF4655] transition-all duration-700"
-                  style={{ width: `${overPct}%` }}
-                />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-px h-4 bg-[#444]"
-                  style={{ left: "50%" }}
-                />
+
+              {/* Labels */}
+              <div className="flex justify-between mt-2 text-xs text-[#444]">
+                <span>{result.killRange[0] - 2} kills</span>
+                <span className="text-[#FF4655]">median: {Math.round((result.killRange[0] + result.killRange[1]) / 2)}</span>
+                <span>{result.killRange[1] + 2} kills</span>
               </div>
-              <div className="flex justify-between mt-2">
-                <span className="text-xs text-[#444]">{100 - overPct}%</span>
-                <span className="text-xs font-bold text-[#FF4655]">{overPct}% OVER</span>
+
+              {/* Probabilities as text */}
+              <div className="mt-4 space-y-1">
+                <p className="text-xs text-[#888]">
+                  Over {killLine}: <span className="text-[#FF4655] font-bold">{overPct}%</span>
+                </p>
+                <p className="text-xs text-[#888]">
+                  Under {killLine}: <span className="text-white font-bold">{100 - overPct}%</span>
+                </p>
               </div>
             </div>
 
