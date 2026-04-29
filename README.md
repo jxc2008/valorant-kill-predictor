@@ -28,7 +28,7 @@ We built a machine learning system that predicts how many kills a professional V
 | Ian Lu | yl12003 | MLP neural network (from scratch, NumPy) |
 | Thomas Yanle Li | yl12316 | Quantile regression (from scratch, NumPy) |
 | Shengyang Tao | st5393 | K-means clustering (from scratch, NumPy) |
-| Alexandra Lugo | anl3528 | Evaluation, frontend (Next.js), integration |
+| Alexandra Lugo | anl3528 | Frontend (Next.js), integration |
 
 ---
 
