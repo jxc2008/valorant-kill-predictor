@@ -172,18 +172,23 @@ def _quantiles_to_over_prob(quantile_preds: np.ndarray, kill_line: float) -> flo
 def _get_similar_players(player: str, map_name: str, k: int = 3) -> list[str]:
     """Return k similar player names via KNN on embeddings."""
     try:
-        emb_data     = np.load(EMB_NPZ, allow_pickle=True)
-        player_names = list(emb_data["player_names"])
-        embeddings   = emb_data["embeddings"]
-
-        # Find this player's embedding
         idxs = [i for i, n in enumerate(player_names) if n.lower() == player.lower()]
         if not idxs:
             return []
 
-        query_emb = embeddings[idxs[0]]
-        results   = knn.query(query_emb, exclude_player=player)
-        return [r["player_name"] for r in results[:k]]
+        query_emb     = embeddings[idxs[0]]
+        canonical     = player_names[idxs[0]]
+        results       = knn.query(query_emb, exclude_player=canonical)
+        seen, unique  = set(), []
+        for r in results:
+            name = r["player_name"]
+            if name.lower() == player.lower() or name.lower() in seen:
+                continue
+            seen.add(name.lower())
+            unique.append(name)
+            if len(unique) >= k:
+                break
+        return unique
     except Exception:
         return []
 
@@ -194,20 +199,29 @@ def _get_similar_players(player: str, map_name: str, k: int = 3) -> list[str]:
 def predict_kills():
     """Predict kill distribution for a player on a given map."""
     if request.method == "GET":
-        data     = request.args
-        player   = data.get("player", "")
-        map_name = data.get("map", "any")
-        kill_line = float(data.get("killLine", 15.5))
-        model    = data.get("model", "mlp")
+        data = request.args
     else:
-        data     = request.get_json(force=True)
-        player   = data.get("player", "")
-        map_name = data.get("map", "any")
-        kill_line = float(data.get("killLine", 15.5))
-        model    = data.get("model", "mlp")
+        try:
+            data = request.get_json(force=True) or {}
+        except Exception:
+            return jsonify({"error": "Invalid JSON body"}), 400
+
+    player    = (data.get("player") or "").strip()
+    map_name  = data.get("map") or "any"
+    raw_line  = data.get("killLine", 15.5)
+    model     = data.get("model") or "mlp"
+
+    try:
+        kill_line = float(raw_line)
+    except (TypeError, ValueError):
+        return jsonify({"error": f"killLine must be numeric, got {raw_line!r}"}), 400
 
     if not player:
         return jsonify({"error": "player is required"}), 400
+    if kill_line < 0:
+        return jsonify({"error": "killLine must be non-negative"}), 400
+    if model not in ("mlp", "quantile_regression"):
+        return jsonify({"error": f"unknown model {model!r}; expected 'mlp' or 'quantile_regression'"}), 400
 
     result = _build_feature_vector(player, map_name)
     if result is None:

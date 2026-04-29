@@ -49,7 +49,11 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      setResult(data);
+      if (!res.ok || data?.error) {
+        setError(data?.error ?? `Request failed (${res.status}).`);
+        return;
+      }
+      setResult(data as PredictResult);
     } catch {
       setError("Prediction failed. Make sure the API is running.");
     } finally {
