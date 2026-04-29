@@ -240,13 +240,31 @@ def predict_kills():
         # Feature importance — absolute weights at median quantile (index 2)
         median_weights = np.abs(qr_model.weights[:, 2])
         top_idx        = np.argsort(median_weights)[::-1][:7]
-        all_cols       = CONTINUOUS_COLS + ROLE_COLS
+        cluster_cols = [f"cluster_{i}" for i in range(4)]
+        all_cols = CONTINUOUS_COLS + ROLE_COLS + cluster_cols
         coeff_list = []
         for i in top_idx:
             col_name = all_cols[i] if i < len(all_cols) else f"feature_{i}"
+            display_names = {
+                "kpr": "KPR (Kills / Round)",
+                "dpr": "DPR (Deaths / Round)",
+                "apr": "APR (Assists / Round)",
+                "adr": "ADR (Avg Damage / Round)",
+                "kast": "KAST %",
+                "fbpr": "First Bloods / Round",
+                "acs": "ACS (Avg Combat Score)",
+                "role_duelist": "Role: Duelist",
+                "role_initiator": "Role: Initiator",
+                "role_controller": "Role: Controller",
+                "role_sentinel": "Role: Sentinel",
+                "cluster_0": "Cluster: Tier 1 (Elite)",
+                "cluster_1": "Cluster: Tier 2",
+                "cluster_2": "Cluster: Tier 3",
+                "cluster_3": "Cluster: Tier 4",
+            }
             coeff_list.append({
-                "feature": col_name.upper().replace("_", " "),
-                "weight":  round(float(median_weights[i]), 4),
+                "feature": display_names.get(col_name, col_name.upper().replace("_", " ")),
+                "weight": round(float(median_weights[i]), 4),
             })
 
         payload = {
