@@ -42,5 +42,5 @@ valorant-kill-predictor/
 | **Joseph Cheng** (jxc2008) | Data pipeline + Embeddings | `src/data/*`, `src/models/embeddings.py`, `scripts/train.py` — data scraping, feature extraction, temporal splitting, and PyTorch embedding model |
 | **Ian Lu** (yl12003) | Quantile regression | `src/models/quantile_reg.py` — from-scratch implementation of pinball loss and gradient descent, kill percentile predictions |
 | **Shengyang Tao** (st5393) | k-NN retrieval | `src/models/knn.py` — from-scratch cosine similarity and k-nearest neighbor search over embedding space |
-| **Alexandra Lugo** (anl3528) | Evaluation + Calibration | `src/evaluation/*` — backtesting framework, ML vs baseline metrics, quantile calibration analysis |
-| **Thomas Yanle Li** (yl12316) | Visualization + Frontend | `src/visualization/*`, `app/*` — PCA embedding plots, Flask API endpoints, Next.js web interface |
+| **Alexandra Lugo** (anl3528) | Visualization + Frontend | `src/visualization/*`, `app/*` — PCA embedding plots, Flask API endpoints, Next.js web interface |
+| **Thomas Yanle Li** (yl12316) |Visualization + Frontend | `src/visualization/*`, `app/*` — PCA embedding plots, Flask API endpoints, Next.js web interface | 
