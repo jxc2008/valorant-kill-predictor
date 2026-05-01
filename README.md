@@ -155,19 +155,54 @@ GET /api/health
 ```
 valorant-kill-predictor/
 ├── app/
-│   ├── api.py                  # Flask API (predict + similar endpoints)
-│   └── frontend/               # Next.js UI (player search, kill range, model toggle)
-├── data/                       # CSV, trained models, and .npz feature files
-├── docs/                       # Project overview and data contract
+│   ├── api.py                         # Flask API (predict, similar, health endpoints)
+│   └── frontend/                      # Next.js UI
+│       ├── app/
+│       │   ├── api/predict/route.ts   # Next.js API route proxying to Flask
+│       │   ├── page.tsx               # Main UI page
+│       │   └── layout.tsx             # App layout
+│       ├── package.json
+│       └── tsconfig.json
+├── data/
+│   ├── player_map_stats.csv           # Raw VCT 2025-2026 match data
+│   ├── features.npz                   # Normalized feature matrix
+│   ├── features_with_cluster.npz      # Features with cluster one-hots appended
+│   ├── scaler_params.npz              # Normalization parameters
+│   ├── embeddings.npz                 # 8-dim learned player-map embeddings
+│   ├── cluster_labels.npz             # K-means cluster assignments
+│   ├── cluster_pca.png                # PCA visualization of embedding space
+│   ├── mlp_model.npz                  # Trained MLP weights
+│   ├── quantile_model.npz             # Trained quantile regression weights
+│   └── split_boundary.json            # Chronological train/test boundary
+├── docs/
+│   ├── overview.md                    # Full project overview and pipeline
+│   ├── design.md                      # Repo structure and division of labor
+│   └── data_contract.md               # File format and interface specifications
 ├── scripts/
-│   ├── train.py                # Training pipeline (features, embeddings, mlp)
-│   └── predict.py              # CLI prediction tool
+│   ├── train.py                       # CLI pipeline (features, embeddings, mlp)
+│   ├── predict.py                     # CLI prediction tool
+│   └── plot_clusters.py               # Generate PCA cluster visualization
 ├── src/
-│   ├── data/                   # loader.py, features.py, split.py
-│   └── models/                 # embeddings.py, knn.py, mlp.py, quantile_reg.py, clustering.py
-├── tests/                      # Unit tests
+│   ├── data/
+│   │   ├── loader.py                  # CSV loading and stat derivation
+│   │   ├── features.py                # Feature extraction and normalization
+│   │   ├── split.py                   # Chronological train/test split
+│   │   └── view_features.py           # Feature inspection utility
+│   ├── models/
+│   │   ├── embeddings.py              # PyTorch embedding model
+│   │   ├── knn.py                     # From-scratch KNN (L2 distance)
+│   │   ├── clustering.py              # From-scratch K-means (K=4)
+│   │   ├── mlp.py                     # From-scratch MLP with pinball loss
+│   │   └── quantile_reg.py            # From-scratch quantile regression
+│   ├── evaluation/
+│   │   └── backtest.py                # MLP vs naive baseline accuracy comparison
+│   └── visualization/
+│       └── embedding_viz.py           # PCA projection and scatter plots
+├── tests/
+│   └── __init__.py
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── .gitignore
 ```
 
 ---
