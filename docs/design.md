@@ -21,12 +21,17 @@ valorant-kill-predictor/
 │   │   ├── loader.py                  # CSV loading, score parsing, KPR/ADR/APR/FBPR derivation
 │   │   ├── features.py                # Feature extraction, normalization, one-hot encoding
 │   │   └── split.py                   # Chronological 80/20 train/test split
+└── evaluation/
+│       ├── backtest.py                # backtest utilities for validating
+│       ├── backtest.py                # backtest utilities for validating
 │   └── models/
 │       ├── embeddings.py              # PyTorch embedding model (8-dim player-map fingerprint)
 │       ├── knn.py                     # From-scratch KNN via L2 distance over embedding space
 │       ├── clustering.py              # From-scratch K-means clustering (K=4 archetypes)
 │       ├── mlp.py                     # From-scratch 2-layer MLP with pinball loss (NumPy)
 │       └── quantile_reg.py            # From-scratch linear quantile regression with pinball loss (NumPy)
+│   └── visualization/
+│       └── embedding_viz.py           # PCA projection and scatter plots of player embedding space
 ├── app/
 │   ├── api.py                         # Flask API — /api/predict, /api/similar, /api/health
 │   └── frontend/                      # Next.js UI — player search, kill range, model toggle
