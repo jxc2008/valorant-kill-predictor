@@ -79,10 +79,10 @@ knn.fit(embeddings, metadata)
 print("[API] KNN index built.")
 
 CLUSTER_ARCHETYPES = {
-    0: "Entry Fragger",
-    1: "Sentinel",
-    2: "Support / IGL",
-    3: "Flex",
+    0: "Archetype A",
+    1: "Archetype B",
+    2: "Archetype C",
+    3: "Archetype D",
 }
 
 FEATURE_NAMES = [
@@ -271,10 +271,10 @@ def predict_kills():
                 "role_initiator": "Role: Initiator",
                 "role_controller": "Role: Controller",
                 "role_sentinel": "Role: Sentinel",
-                "cluster_0": "Cluster: Tier 1 (Elite)",
-                "cluster_1": "Cluster: Tier 2",
-                "cluster_2": "Cluster: Tier 3",
-                "cluster_3": "Cluster: Tier 4",
+                "cluster_0": "Cluster A",
+                "cluster_1": "Cluster B",
+                "cluster_2": "Cluster C",
+                "cluster_3": "Cluster D",
             }
             coeff_list.append({
                 "feature": display_names.get(col_name, col_name.upper().replace("_", " ")),
